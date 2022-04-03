@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 
 from vyper.ast import nodes as vy_ast
 from vyper.ast.annotation import annotate_python_ast
+from vyper.ast.postprocessing import postprocess_ast
 from vyper.ast.pre_parser import pre_parse
 from vyper.exceptions import CompilerPanic, ParserException, SyntaxException
 
@@ -36,7 +37,9 @@ def parse_to_ast(
     annotate_python_ast(py_ast, source_code, class_types, source_id, contract_name)
 
     # Convert to Vyper AST.
-    return vy_ast.get_node(py_ast)  # type: ignore
+    ast = vy_ast.get_node(py_ast)
+    postprocess_ast(ast)  # type: ignore
+    return ast  # type: ignore
 
 
 def ast_to_dict(ast_struct: Union[vy_ast.VyperNode, List]) -> Union[Dict, List]:
