@@ -11,6 +11,7 @@ from vyper.exceptions import (
     InvalidOperation,
     InvalidType,
     IteratorException,
+    NamespaceCollision,
     NonPayableViolation,
     StateAccessViolation,
     StructureException,
@@ -208,23 +209,43 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
         self.annotation_visitor.visit(node)
 
     def visit_AnnAssign(self, node):
-        name = node.get("target.id")
-        if name is None:
-            raise VariableDeclarationException("Invalid assignment", node)
+        if isinstance(node.target, vy_ast.Tuple):
+            type_definitions = []
+            for t in node.tuple_target:
+                name = t[0]
+                value = t[2]
+                type_definition = get_type_from_annotation(t[1], DataLocation.MEMORY)
 
-        if not node.value:
-            raise VariableDeclarationException(
-                "Memory variables must be declared with an initial value", node
-            )
+                validate_expected_type(value, type_definition)
+                type_definitions.append(type_definition)
+                try:
+                    self.namespace.validate_assignment(name)
+                    self.namespace[name] = type_definition
+                except NamespaceCollision as exc:
+                    raise exc.with_annotation(node) from None
 
-        type_definition = get_type_from_annotation(node.annotation, DataLocation.MEMORY)
-        validate_expected_type(node.value, type_definition)
+            node.target._metadata["type"] = TupleDefinition(value_type=tuple(type_definitions))
+            self.expr_visitor.visit(node.target)
+            self.expr_visitor.visit(node.value)
 
-        try:
-            self.namespace[name] = type_definition
-        except VyperException as exc:
-            raise exc.with_annotation(node) from None
-        self.expr_visitor.visit(node.value)
+        else:
+            name = node.get("target.id")
+            if name is None:
+                raise VariableDeclarationException("Invalid assignment", node)
+
+            if not node.value:
+                raise VariableDeclarationException(
+                    "Memory variables must be declared with an initial value", node
+                )
+
+            type_definition = get_type_from_annotation(node.annotation, DataLocation.MEMORY)
+            validate_expected_type(node.value, type_definition)
+
+            try:
+                self.namespace[name] = type_definition
+            except VyperException as exc:
+                raise exc.with_annotation(node) from None
+            self.expr_visitor.visit(node.value)
 
     def visit_Assign(self, node):
         if isinstance(node.value, vy_ast.Tuple):
