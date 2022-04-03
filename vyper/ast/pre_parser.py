@@ -75,6 +75,57 @@ VYPER_EXPRESSION_TYPES = {
 }
 
 
+def mangle_tuple_identifiers(code: str) -> str:
+    """
+    Helper function to preprocess the Vyper source string by mangling tuple declarations
+    into valid Python syntax.
+
+    Parameters
+    ----------
+    code : str
+        The Vyper source code to be re-formatted.
+
+    Returns
+    -------
+    str
+        Reformatted Vyper source string.
+
+    """
+    code_by_line = re.split("\n", code)
+    res = []
+
+    for line in code_by_line:
+        # Extract the identifiers and assigned values
+        tuple_assignments = [x[0] for x in re.findall(r"(\w+\s*:{1}\s*(\w+(?:\[\d+\])?))", line)]
+        if len(tuple_assignments) < 2:
+            # Skip if less than 2 identifiers
+            res.append(line)
+            continue
+
+        # Get the end index to join back mangled identifier to the string
+        start_index = line.index(tuple_assignments[0])
+        end_index = line.index(tuple_assignments[-1]) + len(tuple_assignments[-1])
+
+        # Strip whitespace from identifiers and assigned values
+        tuple_assignments = [re.sub(r"\s+", "", r).split(":") for r in tuple_assignments]
+
+        # Mangle identifiers
+        new_identifier = "__".join([i[0] for i in tuple_assignments])
+
+        # Concatenate type definitions
+        new_type_decl = ", ".join([i[1] for i in tuple_assignments])
+
+        # Construct mangled tuple declaration
+        new_lhs = f"{new_identifier}: ({new_type_decl})"
+
+        # Insert into original line
+        new_line = line[:start_index] + new_lhs + line[end_index:]
+        res.append(new_line)
+
+    code = "\n".join(res)
+    return code
+
+
 def pre_parse(code: str) -> Tuple[ModificationOffsets, str]:
     """
     Re-formats a vyper source string into a python source string and performs
@@ -102,6 +153,8 @@ def pre_parse(code: str) -> Tuple[ModificationOffsets, str]:
     """
     result = []
     modification_offsets: ModificationOffsets = {}
+
+    code = mangle_tuple_identifiers(code)
 
     try:
         code_bytes = code.encode("utf-8")
