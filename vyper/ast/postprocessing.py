@@ -35,6 +35,9 @@ def unmangle_tuple_declarations(vyper_module: vy_ast.Module) -> None:
         Top-level Vyper AST node.
     """
     for node in vyper_module.get_descendants(vy_ast.AnnAssign):
+        if not hasattr(node.target, "id"):
+            continue
+
         targets = node.target.id.split("__")
 
         if len(targets) < 2:

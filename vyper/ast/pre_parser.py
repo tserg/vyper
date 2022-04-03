@@ -95,8 +95,18 @@ def mangle_tuple_identifiers(code: str) -> str:
     res = []
 
     for line in code_by_line:
+        if len(line.split(",")) < 2 or line.startswith("def"):
+            res.append(line)
+            continue
         # Extract the identifiers and assigned values
-        tuple_assignments = [x[0] for x in re.findall(r"(\w+\s*:{1}\s*(\w+(?:\[\d+\])?))", line)]
+        temp = re.findall(
+            (
+                r"(\w+[ \t]?:[ \t]?\w+(?:\[\d+\])?)(?![ \t]=)(?=[ \t]?,)"
+                r"|(?<=, )(\w+[ \t]?:[ \t]?\w+(?:\[\d+\])?)"
+            ),
+            line,
+        )
+        tuple_assignments = [e for t in temp for e in t if e != ""]
         if len(tuple_assignments) < 2:
             # Skip if less than 2 identifiers
             res.append(line)
