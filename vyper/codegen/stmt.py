@@ -56,13 +56,28 @@ class Stmt:
             raise StructureException(f"Unsupported statement type: {type(self.stmt)}", self.stmt)
 
     def parse_AnnAssign(self):
-        typ = parse_type(
-            self.stmt.annotation,
-            sigs=self.context.sigs,
-            custom_structs=self.context.structs,
-        )
-        varname = self.stmt.target.id
-        pos = self.context.new_variable(varname, typ)
+
+        if isinstance(self.stmt.target, vy_ast.Tuple):
+            for t in zip(self.stmt.target.elements, self.stmt.annotation.elements):
+                element_name = t[0].id
+                element_typ = parse_type(
+                    t[1],
+                    sigs=self.context.sigs,
+                    custom_structs=self.context.structs,
+                )
+                self.context.new_variable(element_name, element_typ)
+
+            target = self._get_target(self.stmt.target)
+
+        else:
+            typ = parse_type(
+                self.stmt.annotation,
+                sigs=self.context.sigs,
+                custom_structs=self.context.structs,
+            )
+            varname = self.stmt.target.id
+            pos = self.context.new_variable(varname, typ)
+
         if self.stmt.value is None:
             return
 
@@ -83,9 +98,11 @@ class Stmt:
                 typ=BaseType("bytes32"),
             )
 
-        variable_loc = IRnode.from_list(pos, typ=typ, location=MEMORY)
-
-        ir_node = make_setter(variable_loc, sub)
+        if isinstance(self.stmt.target, vy_ast.Tuple):
+            ir_node = make_setter(target, sub)
+        else:
+            variable_loc = IRnode.from_list(pos, typ=typ, location=MEMORY)
+            ir_node = make_setter(variable_loc, sub)
 
         return ir_node
 
