@@ -389,6 +389,12 @@ class VyperNode:
                 ast_dict[key] = [_to_dict(i) for i in value]
             else:
                 ast_dict[key] = _to_dict(value)
+        for key in self._metadata.keys():
+            value = self._metadata.get(key)
+            if key == "type":
+                value = repr(value)
+            if value:
+                ast_dict[key] = value
         return ast_dict
 
     def get_ancestor(self, node_type: Union["VyperNode", tuple, None] = None) -> "VyperNode":
