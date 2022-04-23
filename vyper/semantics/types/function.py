@@ -123,7 +123,8 @@ class ContractFunction(BaseTypeDefinition):
         self.nonreentrant = nonreentrant
 
     def __repr__(self):
-        return f"contract function '{self.name}'"
+        func_args = ",".join([str(i) for i in self.arguments.values()])
+        return f"contract function {self.name}({func_args}) -> {self.return_type}"
 
     @classmethod
     def from_abi(cls, abi: Dict) -> "ContractFunction":
@@ -293,6 +294,10 @@ class ContractFunction(BaseTypeDefinition):
             and "nonreentrant" in kwargs
         ):
             raise StructureException("Cannot use reentrancy guard on view or pure functions", node)
+
+        # Annotate metadata for AST
+        for k, v in kwargs.items():
+            node._metadata[k] = v.name.lower()
 
         # call arguments
         if node.args.defaults and node.name == "__init__":

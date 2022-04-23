@@ -57,6 +57,7 @@ class StatementAnnotationVisitor(_AnnotationVisitorBase):
 
     def visit_AnnAssign(self, node):
         type_ = get_exact_type_from_node(node.target)
+        node._metadata["type"] = type_
         self.expr_visitor.visit(node.target, type_)
         self.expr_visitor.visit(node.value, type_)
 
@@ -65,11 +66,13 @@ class StatementAnnotationVisitor(_AnnotationVisitorBase):
 
     def visit_Assign(self, node):
         type_ = get_exact_type_from_node(node.target)
+        node._metadata["type"] = type_
         self.expr_visitor.visit(node.target, type_)
         self.expr_visitor.visit(node.value, type_)
 
     def visit_AugAssign(self, node):
         type_ = get_exact_type_from_node(node.target)
+        node._metadata["type"] = type_
         self.expr_visitor.visit(node.target, type_)
         self.expr_visitor.visit(node.value, type_)
 
@@ -86,6 +89,7 @@ class StatementAnnotationVisitor(_AnnotationVisitorBase):
     def visit_Return(self, node):
         if node.value is not None:
             self.expr_visitor.visit(node.value, self.func.return_type)
+            node._metadata["type"] = self.func.return_type
 
     def visit_For(self, node):
         if isinstance(node.iter, (vy_ast.Name, vy_ast.Attribute)):
@@ -127,7 +131,7 @@ class ExpressionAnnotationVisitor(_AnnotationVisitorBase):
         call_type = get_exact_type_from_node(node.func)
         node_type = type_ or call_type.fetch_call_return(node)
         node._metadata["type"] = node_type
-        self.visit(node.func)
+        self.visit(node.func, node_type)
         if isinstance(call_type, (Event, ContractFunction)):
             # events and internal function calls
             for arg, arg_type in zip(node.args, list(call_type.arguments.values())):
@@ -188,7 +192,10 @@ class ExpressionAnnotationVisitor(_AnnotationVisitorBase):
             self.visit(element, type_.value_type)
 
     def visit_Name(self, node, type_):
-        node._metadata["type"] = get_exact_type_from_node(node)
+        if not type_:
+            type_ = get_exact_type_from_node(node)
+        if isinstance(type_, BaseTypeDefinition):
+            node._metadata["type"] = type_
 
     def visit_Subscript(self, node, type_):
         if isinstance(node.value, vy_ast.List):
