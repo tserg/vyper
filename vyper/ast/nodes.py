@@ -141,7 +141,29 @@ def _to_dict(value):
     # if value is a Vyper node, convert to a dict
     if isinstance(value, VyperNode):
         return value.to_dict()
-    return value
+
+    from vyper.semantics.types.bases import BaseTypeDefinition
+
+    if isinstance(value, BaseTypeDefinition):
+        return repr(value)
+
+    if isinstance(value, (int, str)) or value is None:
+        return value
+
+    if isinstance(value, list):
+        return [_to_dict(x) for x in value]
+
+    if isinstance(value, dict):
+        ret = value
+    else:
+        typename = type(value).__name__
+        if hasattr(value, "__dict__"):
+            return typename
+        ret = {typename: vars(value)}
+
+    for k in list(ret.keys()):
+        ret[k] = _to_dict(ret[k])
+    return ret
 
 
 def _node_filter(node, filters):
@@ -312,7 +334,8 @@ class VyperNode:
         and are not included within this sequence.
         """
         slot_fields = [x for i in cls.__mro__ for x in getattr(i, "__slots__", [])]
-        return set(i for i in slot_fields if not i.startswith("_"))
+        ret = set(i for i in slot_fields if not i.startswith("_"))
+        return ret
 
     def __hash__(self):
         values = [getattr(self, i, None) for i in VyperNode.__slots__ if not i.startswith("_")]
@@ -389,12 +412,10 @@ class VyperNode:
                 ast_dict[key] = [_to_dict(i) for i in value]
             else:
                 ast_dict[key] = _to_dict(value)
-        for key in self._metadata.keys():
-            value = self._metadata.get(key)
-            if key == "type":
-                value = repr(value)
-            if value:
-                ast_dict[key] = value
+
+        for k, v in self._metadata.items():
+            if v:
+                ast_dict[k] = _to_dict(v)
         return ast_dict
 
     def get_ancestor(self, node_type: Union["VyperNode", tuple, None] = None) -> "VyperNode":
