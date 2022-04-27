@@ -87,7 +87,7 @@ class StructPrimitive:
                 "Struct values must be declared via dictionary", node.args[0]
             )
         if next(
-            (i for i in self.members.values() if isinstance(i, MappingDefinition)),
+            (i[0] for i in self.members.values() if isinstance(i[0], MappingDefinition)),
             False,
         ):
             raise VariableDeclarationException(
@@ -111,8 +111,7 @@ class StructPrimitive:
                     f"keys in this struct are {list(self.members.items())})",
                     key,
                 )
-
-            validate_expected_type(value, members.pop(key.id))
+            validate_expected_type(value, members.pop(key.id)[0])
 
         if members:
             raise VariableDeclarationException(
@@ -150,6 +149,9 @@ def build_primitive_from_node(base_node: vy_ast.EventDef) -> StructPrimitive:
             raise NamespaceCollision(
                 f"Struct member '{member_name}' has already been declared", node.target
             )
-        members[member_name] = get_type_from_annotation(node.annotation, DataLocation.UNSET)
+        members[member_name] = (
+            get_type_from_annotation(node.annotation, DataLocation.UNSET),
+            node.target.node_id,
+        )
 
     return StructPrimitive(base_node.name, members)

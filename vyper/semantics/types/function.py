@@ -447,7 +447,7 @@ class ContractFunction(BaseTypeDefinition):
         return self.min_arg_count < self.max_arg_count
 
     def get_signature(self) -> Tuple[Tuple, Optional[BaseTypeDefinition]]:
-        return tuple(self.arguments.values()), self.return_type
+        return tuple(v[0] for v in self.arguments.values()), self.return_type
 
     def fetch_call_return(self, node: vy_ast.Call) -> Optional[BaseTypeDefinition]:
         if node.get("func.value.id") == "self" and self.visibility == FunctionVisibility.EXTERNAL:
