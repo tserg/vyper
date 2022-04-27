@@ -510,7 +510,7 @@ class ContractFunction(BaseTypeDefinition):
             abi_dict["type"] = "function"
             abi_dict["name"] = self.name
 
-        abi_dict["inputs"] = [generate_abi_type(v, k) for k, v in self.arguments.items()]
+        abi_dict["inputs"] = [generate_abi_type(v[0], k) for k, v in self.arguments.items()]
 
         typ = self.return_type
         if typ is None:
