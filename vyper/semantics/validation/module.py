@@ -41,7 +41,7 @@ def add_module_namespace(vy_module: vy_ast.Module, interface_codes: InterfaceDic
 def _find_cyclic_call(fn_names: list, self_members: dict) -> Optional[list]:
     if fn_names[-1] not in self_members:
         return None
-    internal_calls = self_members[fn_names[-1]].internal_calls
+    internal_calls = self_members[fn_names[-1]][0].internal_calls
     for name in internal_calls:
         if name in fn_names:
             return fn_names + [name]
@@ -105,8 +105,8 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
             )
             # anything that is not a function call will get semantically checked later
             calls_to_self = calls_to_self.intersection(function_names)
-            self_members[node.name].internal_calls = calls_to_self
-            if node.name in self_members[node.name].internal_calls:
+            self_members[node.name][0].internal_calls = calls_to_self
+            if node.name in self_members[node.name][0].internal_calls:
                 self_node = node.get_descendants(
                     vy_ast.Attribute, {"value.id": "self", "attr": node.name}
                 )[0]
@@ -133,15 +133,17 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
                 raise CallViolation("Contract contains cyclic function call", *nodes)
 
             # get complete list of functions that are reachable from this function
-            function_set = set(i for i in self_members[fn_name].internal_calls if i in self_members)
+            function_set = set(
+                i for i in self_members[fn_name][0].internal_calls if i in self_members
+            )
             while True:
-                expanded = set(x for i in function_set for x in self_members[i].internal_calls)
+                expanded = set(x for i in function_set for x in self_members[i][0].internal_calls)
                 expanded |= function_set
                 if expanded == function_set:
                     break
                 function_set = expanded
 
-            self_members[fn_name].recursive_calls = function_set
+            self_members[fn_name][0].recursive_calls = function_set
 
     def visit_AnnAssign(self, node):
         name = node.get("target.id")
@@ -216,7 +218,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
 
             validate_expected_type(node.value, type_definition)
             try:
-                self.namespace[name] = type_definition
+                self.namespace[name] = (type_definition, node.node_id)
             except VyperException as exc:
                 raise exc.with_annotation(node) from None
             return
@@ -229,7 +231,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
 
         if is_immutable:
             try:
-                self.namespace[name] = type_definition
+                self.namespace[name] = (type_definition, node.node_id)
             except VyperException as exc:
                 raise exc.with_annotation(node) from None
             return
@@ -239,7 +241,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
         except NamespaceCollision as exc:
             raise exc.with_annotation(node) from None
         try:
-            self.namespace["self"].add_member(name, type_definition)
+            self.namespace["self"].add_member(name, (type_definition, node.node_id))
             node.target._metadata["type"] = type_definition
         except NamespaceCollision:
             raise NamespaceCollision(f"Value '{name}' has already been declared", node) from None
@@ -249,7 +251,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
     def visit_EventDef(self, node):
         obj = Event.from_EventDef(node)
         try:
-            self.namespace[node.name] = obj
+            self.namespace[node.name] = (obj, node.node_id)
         except VyperException as exc:
             raise exc.with_annotation(node) from None
 
@@ -257,7 +259,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
         func = ContractFunction.from_FunctionDef(node)
 
         try:
-            self.namespace["self"].add_member(func.name, func)
+            self.namespace["self"].add_member(func.name, (func, node.node_id))
             node._metadata["type"] = func
         except VyperException as exc:
             raise exc.with_annotation(node) from None
@@ -283,14 +285,14 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
     def visit_InterfaceDef(self, node):
         obj = self.namespace["interface"].build_primitive_from_node(node)
         try:
-            self.namespace[node.name] = obj
+            self.namespace[node.name] = (obj, node.node_id)
         except VyperException as exc:
             raise exc.with_annotation(node) from None
 
     def visit_StructDef(self, node):
         obj = self.namespace["struct"].build_primitive_from_node(node)
         try:
-            self.namespace[node.name] = obj
+            self.namespace[node.name] = (obj, node.node_id)
         except VyperException as exc:
             raise exc.with_annotation(node) from None
 
@@ -318,7 +320,7 @@ def _add_import(
         raise CompilerPanic(f"Unknown interface format: {interface_codes[name]['type']}")
 
     try:
-        namespace[alias] = type_
+        namespace[alias] = (type_, None)
     except VyperException as exc:
         raise exc.with_annotation(node) from None
 

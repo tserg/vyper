@@ -28,9 +28,9 @@ class Namespace(dict):
         from vyper.semantics import environment
         from vyper.semantics.types import get_types
 
-        self.update(get_types())
+        self.update({k: (v, None) for k, v in get_types().items()})
         self.update(environment.get_constant_vars())
-        self.update(get_builtin_functions())
+        self.update({k: (v, None) for k, v in get_builtin_functions().items()})
 
     def __eq__(self, other):
         return self is other
@@ -45,7 +45,7 @@ class Namespace(dict):
         if key not in self:
             suggestions_str = get_levenshtein_error_suggestions(key, self, 0.2)
             raise UndeclaredDefinition(f"'{key}' has not been declared. {suggestions_str}")
-        return super().__getitem__(key)
+        return super().__getitem__(key)[0]
 
     def __enter__(self):
         if not self._scopes:
@@ -56,6 +56,11 @@ class Namespace(dict):
             raise CompilerPanic("Bad use of namespace as a context manager")
         for key in self._scopes.pop():
             del self[key]
+
+    def get_node_id(self, key):
+        if key not in self:
+            return None
+        return super().__getitem__(key)[1]
 
     def enter_scope(self):
         """

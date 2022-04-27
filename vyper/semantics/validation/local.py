@@ -221,7 +221,7 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
         validate_expected_type(node.value, type_definition)
 
         try:
-            self.namespace[name] = type_definition
+            self.namespace[name] = (type_definition, node.node_id)
         except VyperException as exc:
             raise exc.with_annotation(node) from None
         self.expr_visitor.visit(node.value)
@@ -404,7 +404,7 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
 
             with self.namespace.enter_scope():
                 try:
-                    self.namespace[iter_name] = type_
+                    self.namespace[iter_name] = (type_, node.target.node_id)
                 except VyperException as exc:
                     raise exc.with_annotation(node) from None
 

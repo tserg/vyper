@@ -123,7 +123,7 @@ class ContractFunction(BaseTypeDefinition):
         self.nonreentrant = nonreentrant
 
     def __repr__(self):
-        func_args = ",".join([str(i) for i in self.arguments.values()])
+        func_args = ",".join([str(i[0]) for i in self.arguments.values()])
         return f"contract function {self.name}({func_args}) -> {self.return_type}"
 
     @classmethod
@@ -337,7 +337,7 @@ class ContractFunction(BaseTypeDefinition):
                 # kludge because kwargs in signatures don't get visited by the annotator
                 value._metadata["type"] = type_definition
 
-            arguments[arg.arg] = type_definition
+            arguments[arg.arg] = (type_definition, arg.node_id)
 
         # return types
         if node.returns is None:
@@ -390,7 +390,7 @@ class ContractFunction(BaseTypeDefinition):
         arguments, return_type = type_.get_signature()
         args_dict: OrderedDict = OrderedDict()
         for item in arguments:
-            args_dict[f"arg{len(args_dict)}"] = item
+            args_dict[f"arg{len(args_dict)}"] = (item, None)
         return cls(
             node.target.id,
             args_dict,
@@ -410,7 +410,7 @@ class ContractFunction(BaseTypeDefinition):
         * For functions with default arguments, there is one key for each
           function signature.
         """
-        arg_types = [i.canonical_abi_type for i in self.arguments.values()]
+        arg_types = [i[0].canonical_abi_type for i in self.arguments.values()]
 
         if not self.has_default_args:
             return _generate_method_id(self.name, arg_types)

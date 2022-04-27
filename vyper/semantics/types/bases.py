@@ -242,6 +242,8 @@ class BaseTypeDefinition:
         If `True`, attempts to assign this value without calling it will raise
         a more expressive error message recommending that the user performs a
         function call.
+    _declaration_node_id: int, optional
+        The ID of the variable declaration node for the current variable-type.
 
     Object Attributes
     -----------------
@@ -580,14 +582,22 @@ class MemberTypeDefinition(BaseTypeDefinition):
 
     def get_member(self, key: str, node: vy_ast.VyperNode) -> BaseTypeDefinition:
         if key in self.members:
-            return self.members[key]
+            return self.members[key][0]
         elif key in getattr(self, "_type_members", []):
-            type_ = copy.deepcopy(self._type_members[key])
+            type_ = copy.deepcopy(self._type_members[key][0])
             type_.location = self.location
             type_.is_constant = self.is_constant
             return type_
         suggestions_str = get_levenshtein_error_suggestions(key, self.members, 0.3)
         raise UnknownAttribute(f"{self} has no member '{key}'. {suggestions_str}", node)
+
+    def get_member_node_id(self, key: str) -> int:
+        if key in self.members:
+            return self.members[key][1]
+        elif key in getattr(self, "_type_members", []):
+            return self._type_members[key][1]
+        suggestions_str = get_levenshtein_error_suggestions(key, self.members, 0.3)
+        raise UnknownAttribute(f"{self} has no member '{key}'. {suggestions_str}")
 
     def __repr__(self):
         return f"{self._id}"
