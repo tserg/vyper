@@ -84,8 +84,8 @@ class InterfacePrimitive:
             name
             for name, type_ in self.members.items()
             if name not in namespace["self"].members
-            or not hasattr(namespace["self"].members[name], "compare_signature")
-            or not namespace["self"].members[name].compare_signature(type_)
+            or not hasattr(namespace["self"].members[name][0], "compare_signature")
+            or not namespace["self"].members[name][0].compare_signature(type_)
         ]
         # check for missing events
         unimplemented += [
