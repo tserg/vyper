@@ -89,7 +89,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
         # internal functions are intentionally included in this check, to prevent breaking
         # changes in in case of a future change to their calling convention
         self_members = namespace["self"].members
-        functions = [i for i in self_members.values() if isinstance(i, ContractFunction)]
+        functions = [i[0] for i in self_members.values() if isinstance(i[0], ContractFunction)]
         validate_unique_method_ids(functions)
 
         # generate an `InterfacePrimitive` from the top-level node - used for building the ABI

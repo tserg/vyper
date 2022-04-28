@@ -138,15 +138,15 @@ class ExpressionAnnotationVisitor(_AnnotationVisitorBase):
         if isinstance(call_type, (Event, ContractFunction)):
             # events and internal function calls
             for arg, arg_type in zip(node.args, list(call_type.arguments.values())):
-                self.visit(arg, arg_type)
+                self.visit(arg, arg_type[0])
         elif isinstance(call_type, StructPrimitive):
             # literal structs
             for value, arg_type in zip(node.args[0].values, list(call_type.members.values())):
-                self.visit(value, arg_type)
+                self.visit(value, arg_type[0])
         elif isinstance(call_type, MemberFunctionDefinition):
             assert len(node.args) == len(call_type.arg_types)
             for arg, arg_type in zip(node.args, call_type.arg_types):
-                self.visit(arg, arg_type)
+                self.visit(arg, arg_type[0])
         elif node.func.id not in ("empty", "range"):
             # builtin functions
             for arg in node.args:

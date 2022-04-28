@@ -432,7 +432,7 @@ class ContractFunction(BaseTypeDefinition):
         """
         Get the length of the argument buffer in the function frame
         """
-        return sum(arg_t.size_in_bytes() for arg_t in self.arguments.values())
+        return sum(arg_t[0].size_in_bytes() for arg_t in self.arguments.values())
 
     @property
     def is_constructor(self) -> bool:
@@ -465,7 +465,7 @@ class ContractFunction(BaseTypeDefinition):
                 raise CallViolation("Cannnot send ether to nonpayable function", kwarg_node)
 
         for arg, expected in zip(node.args, self.arguments.values()):
-            validate_expected_type(arg, expected)
+            validate_expected_type(arg, expected[0])
 
         for kwarg in node.keywords:
             if kwarg.arg in ("gas", "value"):

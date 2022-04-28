@@ -35,6 +35,6 @@ def new_type_to_old_type(typ: new.BasePrimitive) -> old.NodeType:
         return old.TupleType([new_type_to_old_type(t) for t in typ.value_type])
     if isinstance(typ, new.StructDefinition):
         return old.StructType(
-            {n: new_type_to_old_type(t) for (n, t) in typ.members.items()}, typ._id
+            {n: new_type_to_old_type(t[0]) for (n, t) in typ.members.items()}, typ._id
         )
     raise InvalidType(f"unknown type {typ}")

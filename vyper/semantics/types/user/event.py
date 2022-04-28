@@ -43,7 +43,7 @@ class Event:
 
     @property
     def signature(self):
-        return f"{self.name}({','.join(v.canonical_abi_type for v in self.arguments.values())})"
+        return f"{self.name}({','.join(v[0].canonical_abi_type for v in self.arguments.values())})"
 
     @classmethod
     def from_abi(cls, abi: Dict) -> "Event":
@@ -109,21 +109,24 @@ class Event:
             else:
                 indexed.append(False)
 
-            members[member_name] = get_type_from_annotation(annotation, DataLocation.UNSET)
+            members[member_name] = (
+                get_type_from_annotation(annotation, DataLocation.UNSET),
+                node.node_id,
+            )
 
         return Event(base_node.name, members, indexed)
 
     def fetch_call_return(self, node: vy_ast.Call) -> None:
         validate_call_args(node, len(self.arguments))
         for arg, expected in zip(node.args, self.arguments.values()):
-            validate_expected_type(arg, expected)
+            validate_expected_type(arg, expected[0])
 
     def to_abi_dict(self) -> List[Dict]:
         return [
             {
                 "name": self.name,
                 "inputs": [
-                    dict(**generate_abi_type(typ, name), **{"indexed": idx})
+                    dict(**generate_abi_type(typ[0], name), **{"indexed": idx})
                     for (name, typ), idx in zip(self.arguments.items(), self.indexed)
                 ],
                 "anonymous": False,

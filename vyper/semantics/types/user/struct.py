@@ -35,18 +35,18 @@ class StructDefinition(MemberTypeDefinition, ValueTypeDefinition):
 
     @property
     def is_dynamic_size(self):
-        return any(i for i in self.members.values() if i.is_dynamic_size)
+        return any(i[0] for i in self.members.values() if i[0].is_dynamic_size)
 
     @property
     def size_in_bytes(self):
-        return sum(i.size_in_bytes for i in self.members.values())
+        return sum(i[0].size_in_bytes for i in self.members.values())
 
     def compare_type(self, other):
         return super().compare_type(other) and self._id == other._id
 
     @property
     def abi_type(self) -> ABIType:
-        return ABI_Tuple([t.abi_type for t in self.members.values()])
+        return ABI_Tuple([t[0].abi_type for t in self.members.values()])
 
 
 class StructPrimitive:
