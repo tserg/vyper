@@ -147,11 +147,11 @@ def _to_dict(value):
     if isinstance(value, BaseTypeDefinition):
         return repr(value)
 
-    if isinstance(value, (int, str)) or value is None:
+    if isinstance(value, (int, str, decimal.Decimal)) or value is None:
         return value
 
-    if not bool(value) and value != "False":
-        return None
+    if isinstance(value, (bytes, bytearray)):
+        return value.decode("utf-8")
 
     if isinstance(value, list):
         return [_to_dict(x) for x in value]
