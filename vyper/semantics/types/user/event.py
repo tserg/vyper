@@ -62,7 +62,7 @@ class Event:
         members: OrderedDict = OrderedDict()
         indexed: List = [i["indexed"] for i in abi["inputs"]]
         for item in abi["inputs"]:
-            members[item["name"]] = get_type_from_abi(item)
+            members[item["name"]] = (get_type_from_abi(item), None)
         return Event(abi["name"], members, indexed)
 
     @classmethod

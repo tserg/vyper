@@ -144,9 +144,12 @@ class DynamicArrayDefinition(_SequenceDefinition, MemberTypeDefinition):
         from vyper.semantics.types.function import MemberFunctionDefinition
 
         self.add_member(
-            "append", MemberFunctionDefinition(self, "append", [self.value_type], None, True)
+            "append",
+            (MemberFunctionDefinition(self, "append", [self.value_type], None, True), None),
         )
-        self.add_member("pop", MemberFunctionDefinition(self, "pop", [], self.value_type, True))
+        self.add_member(
+            "pop", (MemberFunctionDefinition(self, "pop", [], self.value_type, True), None)
+        )
 
     def __repr__(self):
         return f"DynArray[{self.value_type}, {self.length}]"

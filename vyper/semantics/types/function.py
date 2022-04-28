@@ -143,8 +143,9 @@ class ContractFunction(BaseTypeDefinition):
 
         arguments = OrderedDict()
         for item in abi["inputs"]:
-            arguments[item["name"]] = get_type_from_abi(
-                item, location=DataLocation.CALLDATA, is_constant=True
+            arguments[item["name"]] = (
+                get_type_from_abi(item, location=DataLocation.CALLDATA, is_constant=True),
+                None,
             )
         return_type = None
         if len(abi["outputs"]) == 1:
@@ -297,7 +298,9 @@ class ContractFunction(BaseTypeDefinition):
 
         # Annotate metadata for AST
         for k, v in kwargs.items():
-            node._metadata[k] = v.name.lower()
+            if isinstance(v, StringEnum):
+                v = v.name.lower()
+            node._metadata[k] = v
 
         # call arguments
         if node.args.defaults and node.name == "__init__":

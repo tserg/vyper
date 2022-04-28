@@ -573,7 +573,7 @@ class MemberTypeDefinition(BaseTypeDefinition):
         super().__init__(location, is_constant, is_public, is_immutable)
         self.members: OrderedDict = OrderedDict()
 
-    def add_member(self, name: str, type_: BaseTypeDefinition) -> None:
+    def add_member(self, name: str, type_: Tuple[BaseTypeDefinition, Any]) -> None:
         if name in self.members:
             raise NamespaceCollision(f"Member '{name}' already exists in {self}")
         if name in getattr(self, "_type_members", []):
