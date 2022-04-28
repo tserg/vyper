@@ -384,7 +384,7 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
                         call_node,
                     )
 
-                for name in self.namespace["self"].members[fn_name].recursive_calls:
+                for name in self.namespace["self"].members[fn_name][0].recursive_calls:
                     # check for indirect modification
                     fn_node = self.vyper_module.get_children(vy_ast.FunctionDef, {"name": name})[0]
                     if _check_iterator_assign(node.iter, fn_node):
