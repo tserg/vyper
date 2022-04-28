@@ -150,6 +150,9 @@ def _to_dict(value):
     if isinstance(value, (int, str)) or value is None:
         return value
 
+    if not bool(value) and value != "False":
+        return None
+
     if isinstance(value, list):
         return [_to_dict(x) for x in value]
 
