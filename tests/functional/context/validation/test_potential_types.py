@@ -25,14 +25,14 @@ def test_attribute(build_node, namespace):
     node = build_node("self.foo")
     type_def = Int128Definition()
     with namespace.enter_scope():
-        namespace["self"].add_member("foo", (type_def, node.node_id))
+        namespace["self"].add_member("foo", type_def)
         assert get_possible_types_from_node(node) == [type_def]
 
 
 def test_attribute_missing_self(build_node, namespace):
     node = build_node("foo")
     with namespace.enter_scope():
-        namespace["self"].add_member("foo", (Int128Definition(), None))
+        namespace["self"].add_member("foo", Int128Definition())
         with pytest.raises(InvalidReference):
             get_possible_types_from_node(node)
 
@@ -40,7 +40,7 @@ def test_attribute_missing_self(build_node, namespace):
 def test_attribute_not_in_self(build_node, namespace):
     node = build_node("self.foo")
     with namespace.enter_scope():
-        namespace["foo"] = (Int128Definition(), node.node_id)
+        namespace["foo"] = Int128Definition()
         with pytest.raises(InvalidReference):
             get_possible_types_from_node(node)
 
@@ -48,7 +48,7 @@ def test_attribute_not_in_self(build_node, namespace):
 def test_attribute_unknown(build_node, namespace):
     node = build_node("foo.bar")
     with namespace.enter_scope():
-        namespace["foo"] = (AddressDefinition(), node.node_id)
+        namespace["foo"] = AddressDefinition()
         with pytest.raises(UnknownAttribute):
             get_possible_types_from_node(node)
 
@@ -56,7 +56,7 @@ def test_attribute_unknown(build_node, namespace):
 def test_attribute_not_member_type(build_node, namespace):
     node = build_node("foo.bar")
     with namespace.enter_scope():
-        namespace["foo"] = (Int128Definition(), node.node_id)
+        namespace["foo"] = Int128Definition()
         with pytest.raises(StructureException):
             get_possible_types_from_node(node)
 
@@ -150,7 +150,7 @@ def test_compare_invalid_op(build_node, namespace, op, left, right):
 def test_name(build_node, namespace):
     node = build_node("foo")
     type_def = Int128Definition()
-    namespace["foo"] = (type_def, node.node_id)
+    namespace["foo"] = type_def
 
     assert get_possible_types_from_node(node) == [type_def]
 
@@ -177,7 +177,7 @@ def test_subscript(build_node, namespace):
     node = build_node("foo[1]")
     type_def = Int128Definition()
 
-    namespace["foo"] = (ArrayDefinition(type_def, 3), node.node_id)
+    namespace["foo"] = ArrayDefinition(type_def, 3)
     assert get_possible_types_from_node(node) == [type_def]
 
 
@@ -185,7 +185,7 @@ def test_subscript_out_of_bounds(build_node, namespace):
     node = build_node("foo[5]")
     type_def = Int128Definition()
 
-    namespace["foo"] = (ArrayDefinition(type_def, 3), node.node_id)
+    namespace["foo"] = ArrayDefinition(type_def, 3)
     with pytest.raises(ArrayIndexException):
         get_possible_types_from_node(node)
 
@@ -194,7 +194,7 @@ def test_subscript_negative(build_node, namespace):
     node = build_node("foo[-1]")
     type_def = Int128Definition()
 
-    namespace["foo"] = (ArrayDefinition(type_def, 3), node.node_id)
+    namespace["foo"] = ArrayDefinition(type_def, 3)
     with pytest.raises(ArrayIndexException):
         get_possible_types_from_node(node)
 
@@ -202,8 +202,8 @@ def test_subscript_negative(build_node, namespace):
 def test_tuple(build_node, namespace):
     node = build_node("(foo, bar)")
 
-    namespace["foo"] = (Int128Definition(), None)
-    namespace["bar"] = (AddressDefinition(), None)
+    namespace["foo"] = Int128Definition()
+    namespace["bar"] = AddressDefinition()
     types_list = get_possible_types_from_node(node)
 
     assert types_list[0].value_type == [namespace["foo"], namespace["bar"]]
@@ -212,8 +212,8 @@ def test_tuple(build_node, namespace):
 def test_tuple_subscript(build_node, namespace):
     node = build_node("(foo, bar)[1]")
 
-    namespace["foo"] = (Int128Definition(), None)
-    namespace["bar"] = (AddressDefinition(), None)
+    namespace["foo"] = Int128Definition()
+    namespace["bar"] = AddressDefinition()
     types_list = get_possible_types_from_node(node)
 
     assert types_list == [namespace["bar"]]

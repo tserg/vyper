@@ -13,9 +13,9 @@ def test_get_namespace():
 
 
 def test_builtin_context_manager(namespace):
-    namespace["foo"] = (42, None)
+    namespace["foo"] = 42
     with namespace.enter_scope():
-        namespace["bar"] = (1337, None)
+        namespace["bar"] = 1337
 
     assert namespace["foo"] == 42
     assert "bar" not in namespace
@@ -52,9 +52,9 @@ def test_context_manager_mutable_vars(namespace):
 
 def test_context_manager(namespace):
     with namespace.enter_scope():
-        namespace["foo"] = (42, None)
+        namespace["foo"] = 42
         with namespace.enter_scope():
-            namespace["bar"] = (1337, None)
+            namespace["bar"] = 1337
 
         assert namespace["foo"] == 42
         assert "bar" not in namespace
@@ -70,17 +70,17 @@ def test_incorrect_context_invocation(namespace):
 
 def test_namespace_collision(namespace):
     with namespace.enter_scope():
-        namespace["foo"] = (42, None)
+        namespace["foo"] = 42
         with pytest.raises(NamespaceCollision):
-            namespace["foo"] = (1337, None)
+            namespace["foo"] = 1337
 
 
 def test_namespace_collision_across_scopes(namespace):
     with namespace.enter_scope():
-        namespace["foo"] = (42, None)
+        namespace["foo"] = 42
         with namespace.enter_scope():
             with pytest.raises(NamespaceCollision):
-                namespace["foo"] = (1337, None)
+                namespace["foo"] = 1337
 
 
 def test_undeclared_definition(namespace):
@@ -91,6 +91,6 @@ def test_undeclared_definition(namespace):
 def test_undeclared_definition_across_scopes(namespace):
     with namespace.enter_scope():
         with namespace.enter_scope():
-            namespace["foo"] = (42, None)
+            namespace["foo"] = 42
     with pytest.raises(UndeclaredDefinition):
         namespace["foo"]
