@@ -65,7 +65,7 @@ def build_interface_output(compiler_data: CompilerData) -> str:
 
     if interface.events:
         out = "# Events\n\n"
-        for event in interface.events.values():
+        for event in interface.events.get_types():
             encoded_args = "\n    ".join(
                 f"{name}: {typ}" for name, typ in event.arguments.get_types_with_key_list()
             )
