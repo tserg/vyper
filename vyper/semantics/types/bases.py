@@ -597,7 +597,7 @@ class MemberTypeDefinition(BaseTypeDefinition):
             return self._type_members.get_member_node_id(key)
         return None
 
-    def set_member_node_id(self, key: str, node_id: int):
+    def set_member_node_id(self, key: str, node_id: int) -> None:
         if key in self.members:
             self.members.set_member_node_id(key, node_id)
         elif key in getattr(self, "_type_members", []):
