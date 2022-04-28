@@ -6,6 +6,7 @@ from vyper.semantics.types.value.address import AddressDefinition
 from vyper.semantics.types.value.array_value import BytesArrayDefinition
 from vyper.semantics.types.value.bytes_fixed import Bytes32Definition
 from vyper.semantics.types.value.numeric import Uint256Definition  # type: ignore
+from vyper.semantics.utils import MemberInfoDict
 
 CONSTANT_ENVIRONMENT_VARS: Dict[str, Dict[str, type]] = {
     "block": {
@@ -39,8 +40,8 @@ def get_constant_vars() -> Dict:
     """
     result = {}
     for name, members in CONSTANT_ENVIRONMENT_VARS.items():
-        updated_members = {k: (v(is_constant=True), None) for k, v in members.items()}
-        result[name] = (StructDefinition(name, updated_members, is_constant=True), None)
+        updated_members = MemberInfoDict({k: v(is_constant=True) for k, v in members.items()})
+        result[name] = StructDefinition(name, updated_members, is_constant=True)
 
     return result
 
@@ -50,6 +51,4 @@ def get_mutable_vars() -> Dict:
     Get a dictionary of mutable environment variables (those that are
     modified during the course of contract execution, such as `self`).
     """
-    return {
-        name: (type_(is_constant=True), None) for name, type_ in MUTABLE_ENVIRONMENT_VARS.items()
-    }
+    return {name: type_(is_constant=True) for name, type_ in MUTABLE_ENVIRONMENT_VARS.items()}

@@ -1,6 +1,5 @@
 import re
 import warnings
-from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple
 
 from vyper import ast as vy_ast
@@ -27,6 +26,7 @@ from vyper.semantics.types.utils import (
 )
 from vyper.semantics.types.value.boolean import BoolDefinition
 from vyper.semantics.types.value.numeric import Uint256Definition  # type: ignore
+from vyper.semantics.utils import MemberInfoDict
 from vyper.semantics.validation.utils import validate_expected_type
 from vyper.utils import keccak256
 
@@ -71,8 +71,8 @@ class ContractFunction(BaseTypeDefinition):
     ----------
     name : str
         The name of the function.
-    arguments : OrderedDict
-        Function input arguments as {'name': BaseType}
+    arguments : MemberInfoDict
+        Function input arguments as {'name': (BaseType, referenced node ID}
     min_arg_count : int
         The minimum number of required input arguments.
     max_arg_count : int
@@ -93,7 +93,7 @@ class ContractFunction(BaseTypeDefinition):
     def __init__(
         self,
         name: str,
-        arguments: OrderedDict,
+        arguments: MemberInfoDict,
         # TODO rename to something like positional_args, keyword_args
         min_arg_count: int,
         max_arg_count: int,
@@ -123,7 +123,7 @@ class ContractFunction(BaseTypeDefinition):
         self.nonreentrant = nonreentrant
 
     def __repr__(self):
-        func_args = ",".join([str(i[0]) for i in self.arguments.values()])
+        func_args = ",".join([str(i) for i in self.arguments.get_types()])
         return f"contract function {self.name}({func_args}) -> {self.return_type}"
 
     @classmethod
@@ -141,11 +141,10 @@ class ContractFunction(BaseTypeDefinition):
         ContractFunction object.
         """
 
-        arguments = OrderedDict()
+        arguments = MemberInfoDict()
         for item in abi["inputs"]:
-            arguments[item["name"]] = (
-                get_type_from_abi(item, location=DataLocation.CALLDATA, is_constant=True),
-                None,
+            arguments[item["name"]] = get_type_from_abi(
+                item, location=DataLocation.CALLDATA, is_constant=True
             )
         return_type = None
         if len(abi["outputs"]) == 1:
@@ -308,7 +307,7 @@ class ContractFunction(BaseTypeDefinition):
                 "Constructor may not use default arguments", node.args.defaults[0]
             )
 
-        arguments = OrderedDict()
+        arguments = MemberInfoDict()
         max_arg_count = len(node.args.args)
         min_arg_count = max_arg_count - len(node.args.defaults)
         defaults = [None] * min_arg_count + node.args.defaults
@@ -340,7 +339,8 @@ class ContractFunction(BaseTypeDefinition):
                 # kludge because kwargs in signatures don't get visited by the annotator
                 value._metadata["type"] = type_definition
 
-            arguments[arg.arg] = (type_definition, arg.node_id)
+            arguments[arg.arg] = type_definition
+            arguments.set_member_node_id(arg.arg, arg.node_id)
 
         # return types
         if node.returns is None:
@@ -391,9 +391,9 @@ class ContractFunction(BaseTypeDefinition):
             raise CompilerPanic("Annotation must be a call to public()")
         type_ = get_type_from_annotation(node.annotation.args[0], location=DataLocation.STORAGE)
         arguments, return_type = type_.get_signature()
-        args_dict: OrderedDict = OrderedDict()
+        args_dict: MemberInfoDict = MemberInfoDict()
         for item in arguments:
-            args_dict[f"arg{len(args_dict)}"] = (item, None)
+            args_dict[f"arg{len(args_dict)}"] = item
         return cls(
             node.target.id,
             args_dict,
@@ -413,7 +413,7 @@ class ContractFunction(BaseTypeDefinition):
         * For functions with default arguments, there is one key for each
           function signature.
         """
-        arg_types = [i[0].canonical_abi_type for i in self.arguments.values()]
+        arg_types = [i.canonical_abi_type for i in self.arguments.get_types()]
 
         if not self.has_default_args:
             return _generate_method_id(self.name, arg_types)
@@ -435,7 +435,7 @@ class ContractFunction(BaseTypeDefinition):
         """
         Get the length of the argument buffer in the function frame
         """
-        return sum(arg_t[0].size_in_bytes() for arg_t in self.arguments.values())
+        return sum(arg_t.size_in_bytes() for arg_t in self.arguments.get_types())
 
     @property
     def is_constructor(self) -> bool:
@@ -450,7 +450,7 @@ class ContractFunction(BaseTypeDefinition):
         return self.min_arg_count < self.max_arg_count
 
     def get_signature(self) -> Tuple[Tuple, Optional[BaseTypeDefinition]]:
-        return tuple(v[0] for v in self.arguments.values()), self.return_type
+        return tuple(v for v in self.arguments.get_types()), self.return_type
 
     def fetch_call_return(self, node: vy_ast.Call) -> Optional[BaseTypeDefinition]:
         if node.get("func.value.id") == "self" and self.visibility == FunctionVisibility.EXTERNAL:
@@ -467,8 +467,8 @@ class ContractFunction(BaseTypeDefinition):
             if kwarg_node is not None:
                 raise CallViolation("Cannnot send ether to nonpayable function", kwarg_node)
 
-        for arg, expected in zip(node.args, self.arguments.values()):
-            validate_expected_type(arg, expected[0])
+        for arg, expected in zip(node.args, self.arguments.get_types()):
+            validate_expected_type(arg, expected)
 
         for kwarg in node.keywords:
             if kwarg.arg in ("gas", "value"):
@@ -513,7 +513,9 @@ class ContractFunction(BaseTypeDefinition):
             abi_dict["type"] = "function"
             abi_dict["name"] = self.name
 
-        abi_dict["inputs"] = [generate_abi_type(v[0], k) for k, v in self.arguments.items()]
+        abi_dict["inputs"] = [
+            generate_abi_type(v, k) for k, v in self.arguments.get_types_with_key_list()
+        ]
 
         typ = self.return_type
         if typ is None:

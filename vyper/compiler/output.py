@@ -46,10 +46,12 @@ def build_external_interface_output(compiler_data: CompilerData) -> str:
     name = Path(compiler_data.contract_name).stem.capitalize()
     out = f"\n# External Interfaces\ninterface {name}:\n"
 
-    for func in interface.members.values():
+    for func in interface.members.get_types():
         if func.visibility == FunctionVisibility.INTERNAL or func.name == "__init__":
             continue
-        args = ", ".join([f"{name}: {typ[0]}" for name, typ in func.arguments.items()])
+        args = ", ".join(
+            [f"{name}: {typ}" for name, typ in func.arguments.get_types_with_key_list()]
+        )
         return_value = f" -> {func.return_type}" if func.return_type is not None else ""
         mutability = func.mutability.value
         out = f"{out}    def {func.name}({args}){return_value}: {mutability}\n"
@@ -65,18 +67,20 @@ def build_interface_output(compiler_data: CompilerData) -> str:
         out = "# Events\n\n"
         for event in interface.events.values():
             encoded_args = "\n    ".join(
-                f"{name}: {typ[0]}" for name, typ in event.arguments.items()
+                f"{name}: {typ}" for name, typ in event.arguments.get_types_with_key_list()
             )
             out = f"{out}event {event.name}:\n    {encoded_args if event.arguments else 'pass'}\n"
 
     if interface.members:
         out = f"{out}\n# Functions\n\n"
-        for func in interface.members.values():
+        for func in interface.members.get_types():
             if func.visibility == FunctionVisibility.INTERNAL or func.name == "__init__":
                 continue
             if func.mutability != StateMutability.NONPAYABLE:
                 out = f"{out}@{func.mutability.value}\n"
-            args = ", ".join([f"{name}: {typ[0]}" for name, typ in func.arguments.items()])
+            args = ", ".join(
+                [f"{name}: {typ}" for name, typ in func.arguments.get_types_with_key_list()]
+            )
             return_value = f" -> {func.return_type}" if func.return_type is not None else ""
             out = f"{out}@external\ndef {func.name}({args}){return_value}:\n    pass\n\n"
 
@@ -133,7 +137,7 @@ def build_metadata_output(compiler_data: CompilerData) -> dict:
 
 def build_method_identifiers_output(compiler_data: CompilerData) -> dict:
     interface = compiler_data.vyper_module_folded._metadata["type"]
-    functions = interface.members.values()
+    functions = interface.members.get_types()
 
     return {k: hex(v) for func in functions for k, v in func.method_ids.items()}
 

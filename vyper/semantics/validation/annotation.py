@@ -114,7 +114,8 @@ class ExpressionAnnotationVisitor(_AnnotationVisitorBase):
     def visit_Attribute(self, node, type_):
         base_type = get_exact_type_from_node(node.value)
         node._metadata["type"] = base_type.get_member(node.attr, None)
-        node._metadata["referenced_node_id"] = base_type.get_member_node_id(node.attr)
+        if callable(hasattr(base_type, "get_member_node_id")):
+            node._metadata["referenced_node_id"] = base_type.get_member_node_id(node.attr)
         self.visit(node.value, None)
 
     def visit_BinOp(self, node, type_):
@@ -137,12 +138,12 @@ class ExpressionAnnotationVisitor(_AnnotationVisitorBase):
         self.visit(node.func, node_type)
         if isinstance(call_type, (Event, ContractFunction)):
             # events and internal function calls
-            for arg, arg_type in zip(node.args, list(call_type.arguments.values())):
-                self.visit(arg, arg_type[0])
+            for arg, arg_type in zip(node.args, list(call_type.arguments.get_types())):
+                self.visit(arg, arg_type)
         elif isinstance(call_type, StructPrimitive):
             # literal structs
-            for value, arg_type in zip(node.args[0].values, list(call_type.members.values())):
-                self.visit(value, arg_type[0])
+            for value, arg_type in zip(node.args[0].values, list(call_type.members.get_types())):
+                self.visit(value, arg_type)
         elif isinstance(call_type, MemberFunctionDefinition):
             assert len(node.args) == len(call_type.arg_types)
             for arg, arg_type in zip(node.args, call_type.arg_types):

@@ -229,7 +229,10 @@ def generate_abi_type(type_definition, name=""):
         return {
             "name": name,
             "type": "tuple",
-            "components": [generate_abi_type(v[0], k) for k, v in type_definition.members.items()],
+            "components": [
+                generate_abi_type(v, k)
+                for k, v in type_definition.members.get_types_with_key_list()
+            ],
         }
     if isinstance(type_definition, TupleDefinition):
         return {

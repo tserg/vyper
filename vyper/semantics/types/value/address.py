@@ -3,6 +3,7 @@ from vyper.abi_types import ABI_Address, ABIType
 from vyper.exceptions import InvalidLiteral
 from vyper.utils import checksum_encode, is_checksum_encoded
 
+from ...utils import MemberInfoDict
 from ..bases import BasePrimitive, MemberTypeDefinition, ValueTypeDefinition
 from .array_value import BytesArrayDefinition
 from .boolean import BoolDefinition
@@ -12,13 +13,15 @@ from .numeric import Uint256Definition  # type: ignore
 
 class AddressDefinition(MemberTypeDefinition, ValueTypeDefinition):
     _id = "address"
-    _type_members = {
-        "balance": (Uint256Definition(is_constant=True), None),
-        "codehash": (Bytes32Definition(is_constant=True), None),
-        "codesize": (Uint256Definition(is_constant=True), None),
-        "is_contract": (BoolDefinition(is_constant=True), None),
-        "code": (BytesArrayDefinition(is_constant=True), None),
-    }
+    _type_members = MemberInfoDict(
+        {
+            "balance": Uint256Definition(is_constant=True),
+            "codehash": Bytes32Definition(is_constant=True),
+            "codesize": Uint256Definition(is_constant=True),
+            "is_contract": BoolDefinition(is_constant=True),
+            "code": BytesArrayDefinition(is_constant=True),
+        }
+    )
 
     @property
     def abi_type(self) -> ABIType:

@@ -28,9 +28,9 @@ class Namespace(dict):
         from vyper.semantics import environment
         from vyper.semantics.types import get_types
 
-        self.update({k: (v, None) for k, v in get_types().items()})
+        self.update(get_types())
         self.update(environment.get_constant_vars())
-        self.update({k: (v, None) for k, v in get_builtin_functions().items()})
+        self.update(get_builtin_functions())
 
     def __eq__(self, other):
         return self is other
@@ -39,7 +39,7 @@ class Namespace(dict):
         if self._scopes:
             self.validate_assignment(attr)
             self._scopes[-1].add(attr)
-        super().__setitem__(attr, obj)
+        super().__setitem__(attr, (obj, None))
 
     def __getitem__(self, key):
         if key not in self:
@@ -61,6 +61,11 @@ class Namespace(dict):
         if key not in self:
             return None
         return super().__getitem__(key)[1]
+
+    def set_node_id(self, key, node_id):
+        if key in self:
+            t = super().__getitem__(key)
+            super().__setitem__(key, (t[0], node_id))
 
     def enter_scope(self):
         """

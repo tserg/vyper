@@ -1,7 +1,6 @@
 import copy
-from collections import OrderedDict
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple, Type, Union
+from typing import Any, Optional, Tuple, Type, Union
 
 from vyper import ast as vy_ast
 from vyper.abi_types import ABIType
@@ -18,6 +17,7 @@ from vyper.exceptions import (
     UnknownAttribute,
 )
 from vyper.semantics.types.abstract import AbstractDataType
+from vyper.semantics.utils import MemberInfoDict
 from vyper.semantics.validation.levenshtein_utils import get_levenshtein_error_suggestions
 
 
@@ -242,8 +242,6 @@ class BaseTypeDefinition:
         If `True`, attempts to assign this value without calling it will raise
         a more expressive error message recommending that the user performs a
         function call.
-    _declaration_node_id: int, optional
-        The ID of the variable declaration node for the current variable-type.
 
     Object Attributes
     -----------------
@@ -561,7 +559,7 @@ class MemberTypeDefinition(BaseTypeDefinition):
         Dictionary of members for the given type.
     """
 
-    _type_members: Dict
+    _type_members: MemberInfoDict
 
     def __init__(
         self,
@@ -571,9 +569,9 @@ class MemberTypeDefinition(BaseTypeDefinition):
         is_immutable: bool = False,
     ) -> None:
         super().__init__(location, is_constant, is_public, is_immutable)
-        self.members: OrderedDict = OrderedDict()
+        self.members: MemberInfoDict = MemberInfoDict()
 
-    def add_member(self, name: str, type_: Tuple[BaseTypeDefinition, Any]) -> None:
+    def add_member(self, name: str, type_: BaseTypeDefinition) -> None:
         if name in self.members:
             raise NamespaceCollision(f"Member '{name}' already exists in {self}")
         if name in getattr(self, "_type_members", []):
@@ -583,11 +581,9 @@ class MemberTypeDefinition(BaseTypeDefinition):
     def get_member(self, key: str, node: vy_ast.VyperNode) -> BaseTypeDefinition:
         if key in self.members:
             val = self.members[key]
-            if isinstance(val, BaseTypeDefinition):
-                return val
-            return val[0]
+            return val
         elif key in getattr(self, "_type_members", []):
-            type_ = copy.deepcopy(self._type_members[key][0])
+            type_ = copy.deepcopy(self._type_members[key])
             type_.location = self.location
             type_.is_constant = self.is_constant
             return type_
@@ -596,12 +592,16 @@ class MemberTypeDefinition(BaseTypeDefinition):
 
     def get_member_node_id(self, key: str) -> Optional[int]:
         if key in self.members:
-            if isinstance(key, tuple):
-                return self.members[key][1]
+            return self.members.get_member_node_id(key)
         elif key in getattr(self, "_type_members", []):
-            if isinstance(key, tuple):
-                return self._type_members[key][1]
+            return self._type_members.get_member_node_id(key)
         return None
+
+    def set_member_node_id(self, key: str, node_id: int):
+        if key in self.members:
+            self.members.set_member_node_id(key, node_id)
+        elif key in getattr(self, "_type_members", []):
+            self._type_members.set_member_node_id(key, node_id)
 
     def __repr__(self):
         return f"{self._id}"

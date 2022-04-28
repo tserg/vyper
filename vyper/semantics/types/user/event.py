@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Dict, List
 
 from vyper import ast as vy_ast
@@ -11,6 +10,7 @@ from vyper.semantics.types.utils import (
     get_type_from_abi,
     get_type_from_annotation,
 )
+from vyper.semantics.utils import MemberInfoDict
 from vyper.semantics.validation.utils import validate_expected_type
 from vyper.utils import keccak256
 
@@ -33,7 +33,7 @@ class Event:
         Name of the event.
     """
 
-    def __init__(self, name: str, arguments: OrderedDict, indexed: List) -> None:
+    def __init__(self, name: str, arguments: MemberInfoDict, indexed: List) -> None:
         for key in arguments:
             validate_identifier(key)
         self.name = name
@@ -43,7 +43,7 @@ class Event:
 
     @property
     def signature(self):
-        return f"{self.name}({','.join(v[0].canonical_abi_type for v in self.arguments.values())})"
+        return f"{self.name}({','.join(v.canonical_abi_type for v in self.arguments.get_types())})"
 
     @classmethod
     def from_abi(cls, abi: Dict) -> "Event":
@@ -59,10 +59,10 @@ class Event:
         -------
         Event object.
         """
-        members: OrderedDict = OrderedDict()
+        members: MemberInfoDict = MemberInfoDict()
         indexed: List = [i["indexed"] for i in abi["inputs"]]
         for item in abi["inputs"]:
-            members[item["name"]] = (get_type_from_abi(item), None)
+            members[item["name"]] = get_type_from_abi(item)
         return Event(abi["name"], members, indexed)
 
     @classmethod
@@ -78,7 +78,7 @@ class Event:
         -------
         Event
         """
-        members: OrderedDict = OrderedDict()
+        members: MemberInfoDict = MemberInfoDict()
         indexed: List = []
 
         if len(base_node.body) == 1 and isinstance(base_node.body[0], vy_ast.Pass):
@@ -109,17 +109,15 @@ class Event:
             else:
                 indexed.append(False)
 
-            members[member_name] = (
-                get_type_from_annotation(annotation, DataLocation.UNSET),
-                node.node_id,
-            )
+            members[member_name] = get_type_from_annotation(annotation, DataLocation.UNSET)
+            members.set_member_node_id(member_name, node.node_id)
 
         return Event(base_node.name, members, indexed)
 
     def fetch_call_return(self, node: vy_ast.Call) -> None:
         validate_call_args(node, len(self.arguments))
-        for arg, expected in zip(node.args, self.arguments.values()):
-            validate_expected_type(arg, expected[0])
+        for arg, expected in zip(node.args, self.arguments.get_types()):
+            validate_expected_type(arg, expected)
 
     def to_abi_dict(self) -> List[Dict]:
         return [

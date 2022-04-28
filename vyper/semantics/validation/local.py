@@ -169,7 +169,7 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
         self.func = fn_node._metadata["type"]
         self.annotation_visitor = StatementAnnotationVisitor(fn_node, namespace)
         self.expr_visitor = _LocalExpressionVisitor()
-        namespace.update(self.func.arguments)
+        namespace.update(self.func.arguments.get_types_with_key_dict())
 
         if self.func.mutability == StateMutability.PURE:
             node_list = fn_node.get_descendants(
@@ -221,7 +221,8 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
         validate_expected_type(node.value, type_definition)
 
         try:
-            self.namespace[name] = (type_definition, node.node_id)
+            self.namespace[name] = type_definition
+            self.namespace.set_node_id(name, node.node_id)
         except VyperException as exc:
             raise exc.with_annotation(node) from None
         self.expr_visitor.visit(node.value)
@@ -384,7 +385,7 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
                         call_node,
                     )
 
-                for name in self.namespace["self"].members[fn_name][0].recursive_calls:
+                for name in self.namespace["self"].members[fn_name].recursive_calls:
                     # check for indirect modification
                     fn_node = self.vyper_module.get_children(vy_ast.FunctionDef, {"name": name})[0]
                     if _check_iterator_assign(node.iter, fn_node):
@@ -404,7 +405,8 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
 
             with self.namespace.enter_scope():
                 try:
-                    self.namespace[iter_name] = (type_, node.target.node_id)
+                    self.namespace[iter_name] = type_
+                    self.namespace.set_node_id(iter_name, node.target.node_id)
                 except VyperException as exc:
                     raise exc.with_annotation(node) from None
 

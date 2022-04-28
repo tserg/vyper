@@ -10,17 +10,18 @@ from vyper.semantics.types.bases import DataLocation, MemberTypeDefinition, Valu
 from vyper.semantics.types.function import ContractFunction
 from vyper.semantics.types.user.event import Event
 from vyper.semantics.types.value.address import AddressDefinition
+from vyper.semantics.utils import MemberInfoDict
 from vyper.semantics.validation.utils import validate_expected_type, validate_unique_method_ids
 
 
 class InterfaceDefinition(MemberTypeDefinition, ValueTypeDefinition):
 
-    _type_members = {"address": (AddressDefinition(), None)}
+    _type_members = MemberInfoDict({"address": AddressDefinition()})
 
     def __init__(
         self,
         _id: str,
-        members: OrderedDict,
+        members: MemberInfoDict,
         location: DataLocation = DataLocation.MEMORY,
         is_constant: bool = False,
         is_public: bool = False,
@@ -28,8 +29,7 @@ class InterfaceDefinition(MemberTypeDefinition, ValueTypeDefinition):
     ) -> None:
         self._id = _id
         super().__init__(location, is_constant, is_public, is_immutable)
-        for key, type_ in members.items():
-            self.add_member(key, type_)
+        self.members = members
 
     def get_signature(self):
         return (), AddressDefinition()
@@ -45,7 +45,7 @@ class InterfacePrimitive:
     _as_array = True
 
     def __init__(self, _id, members, events):
-        validate_unique_method_ids(members.values())
+        validate_unique_method_ids(members.get_types())
         for key in members:
             validate_identifier(key)
         self._id = _id
@@ -82,15 +82,15 @@ class InterfacePrimitive:
         # check for missing functions
         unimplemented = [
             name
-            for name, type_ in self.members.items()
+            for name, type_ in self.members.get_types_with_key_list()
             if name not in namespace["self"].members
-            or not hasattr(namespace["self"].members[name][0], "compare_signature")
-            or not namespace["self"].members[name][0].compare_signature(type_)
+            or not hasattr(namespace["self"].members[name], "compare_signature")
+            or not namespace["self"].members[name].compare_signature(type_)
         ]
         # check for missing events
         unimplemented += [
             name
-            for name, event in self.events.items()
+            for name, event in self.events.get_types_with_key_list()
             if name not in namespace
             or not isinstance(namespace[name], Event)
             or namespace[name].event_id != event.event_id
@@ -104,9 +104,9 @@ class InterfacePrimitive:
 
     def to_abi_dict(self) -> List[Dict]:
         abi = []
-        for event in self.events.values():
+        for event in self.events.get_types():
             abi += event.to_abi_dict()
-        for func in self.members.values():
+        for func in self.members.get_types():
             abi += func.to_abi_dict()
         return abi
 
@@ -127,8 +127,8 @@ def build_primitive_from_abi(name: str, abi: dict) -> InterfacePrimitive:
     InterfacePrimitive
         primitive interface type
     """
-    members: OrderedDict = OrderedDict()
-    events: Dict = {}
+    members: MemberInfoDict = MemberInfoDict()
+    events: MemberInfoDict = MemberInfoDict()
 
     names = [i["name"] for i in abi if i.get("type") in ("event", "function")]
     collisions = set(i for i in names if names.count(i) > 1)
@@ -165,7 +165,7 @@ def build_primitive_from_node(
         members, events = _get_module_definitions(node)
     elif isinstance(node, vy_ast.InterfaceDef):
         members = _get_class_functions(node)
-        events = {}
+        events = MemberInfoDict()
     else:
         raise StructureException("Invalid syntax for interface definition", node)
 
@@ -173,8 +173,8 @@ def build_primitive_from_node(
 
 
 def _get_module_definitions(base_node: vy_ast.Module) -> Tuple[OrderedDict, Dict]:
-    functions: OrderedDict = OrderedDict()
-    events: Dict = {}
+    functions: MemberInfoDict = MemberInfoDict()
+    events: MemberInfoDict = MemberInfoDict()
     for node in base_node.get_children(vy_ast.FunctionDef):
         if "external" in [i.id for i in node.decorator_list if isinstance(i, vy_ast.Name)]:
             func = ContractFunction.from_FunctionDef(node)
@@ -194,6 +194,7 @@ def _get_module_definitions(base_node: vy_ast.Module) -> Tuple[OrderedDict, Dict
                     # only keep the `ContractFunction` with the longest set of input args
                     continue
             functions[node.name] = func
+            functions.set_member_node_id(node.name, node.node_id)
     for node in base_node.get_children(vy_ast.AnnAssign, {"annotation.func.id": "public"}):
         name = node.target.id
         if name in functions:
@@ -208,12 +209,13 @@ def _get_module_definitions(base_node: vy_ast.Module) -> Tuple[OrderedDict, Dict
                 f"Interface contains multiple objects named '{name}'", base_node
             )
         events[name] = Event.from_EventDef(node)
+        events.set_member_node_id(name, node.node_id)
 
     return functions, events
 
 
 def _get_class_functions(base_node: vy_ast.InterfaceDef) -> OrderedDict:
-    functions = OrderedDict()
+    functions = MemberInfoDict()
     for node in base_node.body:
         if not isinstance(node, vy_ast.FunctionDef):
             raise StructureException("Interfaces can only contain function definitions", node)

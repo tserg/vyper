@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 from vyper import ast as vy_ast
 from vyper.abi_types import ABI_Tuple, ABIType
 from vyper.ast.validation import validate_call_args
@@ -14,6 +12,7 @@ from vyper.semantics.namespace import validate_identifier
 from vyper.semantics.types.bases import DataLocation, MemberTypeDefinition, ValueTypeDefinition
 from vyper.semantics.types.indexable.mapping import MappingDefinition
 from vyper.semantics.types.utils import get_type_from_annotation
+from vyper.semantics.utils import MemberInfoDict
 from vyper.semantics.validation.levenshtein_utils import get_levenshtein_error_suggestions
 from vyper.semantics.validation.utils import validate_expected_type
 
@@ -22,7 +21,7 @@ class StructDefinition(MemberTypeDefinition, ValueTypeDefinition):
     def __init__(
         self,
         _id: str,
-        members: dict,
+        members: MemberInfoDict,
         location: DataLocation = DataLocation.MEMORY,
         is_constant: bool = False,
         is_public: bool = False,
@@ -30,12 +29,11 @@ class StructDefinition(MemberTypeDefinition, ValueTypeDefinition):
     ) -> None:
         self._id = _id
         super().__init__(location, is_constant, is_public, is_immutable)
-        for key, type_ in members.items():
-            self.add_member(key, type_)
+        self.members = members
 
     @property
     def is_dynamic_size(self):
-        return any(i[0] for i in self.members.values() if i[0].is_dynamic_size)
+        return any(i for i in self.members.get_types() if i.is_dynamic_size)
 
     @property
     def size_in_bytes(self):
@@ -46,7 +44,7 @@ class StructDefinition(MemberTypeDefinition, ValueTypeDefinition):
 
     @property
     def abi_type(self) -> ABIType:
-        return ABI_Tuple([t[0].abi_type for t in self.members.values()])
+        return ABI_Tuple([t.abi_type for t in self.members.get_types()])
 
 
 class StructPrimitive:
@@ -87,7 +85,7 @@ class StructPrimitive:
                 "Struct values must be declared via dictionary", node.args[0]
             )
         if next(
-            (i[0] for i in self.members.values() if isinstance(i[0], MappingDefinition)),
+            (i for i in self.members.get_types() if isinstance(i, MappingDefinition)),
             False,
         ):
             raise VariableDeclarationException(
@@ -111,7 +109,7 @@ class StructPrimitive:
                     f"keys in this struct are {list(self.members.items())})",
                     key,
                 )
-            validate_expected_type(value, members.pop(key.id)[0])
+            validate_expected_type(value, members.pop(key.id))
 
         if members:
             raise VariableDeclarationException(
@@ -136,7 +134,7 @@ def build_primitive_from_node(base_node: vy_ast.EventDef) -> StructPrimitive:
         Primitive struct type
     """
 
-    members: OrderedDict = OrderedDict()
+    members: MemberInfoDict = MemberInfoDict()
     for node in base_node.body:
         if not isinstance(node, vy_ast.AnnAssign):
             raise StructureException("Structs can only variable definitions", node)
@@ -149,9 +147,6 @@ def build_primitive_from_node(base_node: vy_ast.EventDef) -> StructPrimitive:
             raise NamespaceCollision(
                 f"Struct member '{member_name}' has already been declared", node.target
             )
-        members[member_name] = (
-            get_type_from_annotation(node.annotation, DataLocation.UNSET),
-            node.target.node_id,
-        )
-
+        members[member_name] = get_type_from_annotation(node.annotation, DataLocation.UNSET)
+        members.set_member_node_id(member_name, node.target.node_id)
     return StructPrimitive(base_node.name, members)
