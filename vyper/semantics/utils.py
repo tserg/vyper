@@ -7,6 +7,15 @@ class MemberInfoDict(OrderedDict):
             for k, v in dict_values.items():
                 super().__setitem__(k, (v, None))
 
+    def __deepcopy__(self, memo):
+        # Custom implementation of deepcopy due to incorrect nesting
+        c = MemberInfoDict()
+        memo[id(self)] = c
+        for k, v in self.items():
+            c[k] = v[0]
+            c.set_member_node_id(k, v[1])
+        return c
+
     def __setitem__(self, attr, obj):
         super().__setitem__(attr, (obj, None))
 
