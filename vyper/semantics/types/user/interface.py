@@ -224,5 +224,6 @@ def _get_class_functions(base_node: vy_ast.InterfaceDef) -> OrderedDict:
                 f"Interface contains multiple functions named '{node.name}'", node
             )
         functions[node.name] = ContractFunction.from_FunctionDef(node, is_interface=True)
+        functions.set_member_node_id(node.name, node.node_id)  # type: ignore
 
     return functions

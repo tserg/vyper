@@ -62,7 +62,7 @@ class _ExprTypeChecker:
     def __init__(self):
         self.namespace = get_namespace()
 
-    def get_node_id(self, key):
+    def get_referenced_node_id(self, key):
         """
         Retrieve the node ID of the variable declaration for the given key.
 
@@ -79,7 +79,7 @@ class _ExprTypeChecker:
         """
         if key not in self.namespace:
             return None
-        return self.namespace.get_node_id(key)
+        return self.namespace.get_referenced_node_id(key)
 
     def get_exact_type_from_node(self, node, only_definitions=True):
         """
@@ -329,8 +329,8 @@ def _filter(type_, fn_name, node):
         return False
 
 
-def get_node_id(key):
-    return _ExprTypeChecker().get_node_id(key)
+def get_referenced_node_id(key):
+    return _ExprTypeChecker().get_referenced_node_id(key)
 
 
 def get_possible_types_from_node(node):

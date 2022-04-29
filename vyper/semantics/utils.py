@@ -38,3 +38,6 @@ class MemberInfoDict(OrderedDict):
 
     def get_member_node_id(self, key):
         return super().__getitem__(key)[1]
+
+    def get_member_node_id_with_key_dict(self):
+        return {k: v[1] for k, v in self.items()}

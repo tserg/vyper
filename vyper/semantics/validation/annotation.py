@@ -8,8 +8,8 @@ from vyper.semantics.types.user.struct import StructPrimitive
 from vyper.semantics.validation.utils import (
     get_common_types,
     get_exact_type_from_node,
-    get_node_id,
     get_possible_types_from_node,
+    get_referenced_node_id,
 )
 
 
@@ -56,9 +56,13 @@ class StatementAnnotationVisitor(_AnnotationVisitorBase):
     def visit(self, node):
         super().visit(node)
 
+    def visit_arguments(self, node):
+        pass
+
     def visit_AnnAssign(self, node):
         type_ = get_exact_type_from_node(node.target)
         node._metadata["type"] = type_
+        node._metadata["scope"] = self.namespace.current_scope()
         self.expr_visitor.visit(node.target, type_)
         self.expr_visitor.visit(node.value, type_)
 
@@ -85,7 +89,9 @@ class StatementAnnotationVisitor(_AnnotationVisitorBase):
 
     def visit_Log(self, node):
         node._metadata["type"] = self.namespace[node.value.func.id]
-        node._metadata["referenced_node_id"] = self.namespace.get_node_id(node.value.func.id)
+        node._metadata["referenced_node_id"] = self.namespace.get_referenced_node_id(
+            node.value.func.id
+        )
         self.expr_visitor.visit(node.value)
 
     def visit_Return(self, node):
@@ -114,8 +120,9 @@ class ExpressionAnnotationVisitor(_AnnotationVisitorBase):
     def visit_Attribute(self, node, type_):
         base_type = get_exact_type_from_node(node.value)
         node._metadata["type"] = base_type.get_member(node.attr, None)
-        if callable(hasattr(base_type, "get_member_node_id")):
+        if callable(getattr(base_type, "get_member_node_id", None)):
             node._metadata["referenced_node_id"] = base_type.get_member_node_id(node.attr)
+
         self.visit(node.value, None)
 
     def visit_BinOp(self, node, type_):
@@ -142,8 +149,12 @@ class ExpressionAnnotationVisitor(_AnnotationVisitorBase):
                 self.visit(arg, arg_type)
         elif isinstance(call_type, StructPrimitive):
             # literal structs
-            for value, arg_type in zip(node.args[0].values, list(call_type.members.get_types())):
+            for (key, value), arg_type in zip(
+                zip(node.args[0].keys, node.args[0].values), list(call_type.members.get_types())
+            ):
                 self.visit(value, arg_type)
+                key._metadata["type"] = arg_type
+
         elif isinstance(call_type, MemberFunctionDefinition):
             assert len(node.args) == len(call_type.arg_types)
             for arg, arg_type in zip(node.args, call_type.arg_types):
@@ -198,7 +209,9 @@ class ExpressionAnnotationVisitor(_AnnotationVisitorBase):
     def visit_Name(self, node, type_):
         type_ = get_exact_type_from_node(node)
         node._metadata["type"] = type_
-        node._metadata["referenced_node_id"] = get_node_id(node.id)
+        referenced_node_id = get_referenced_node_id(node.id)
+        if referenced_node_id != node.get_ancestor().node_id:
+            node._metadata["referenced_node_id"] = referenced_node_id
 
     def visit_Subscript(self, node, type_):
         if isinstance(node.value, vy_ast.List):

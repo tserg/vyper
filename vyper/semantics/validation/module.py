@@ -217,7 +217,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
             validate_expected_type(node.value, type_definition)
             try:
                 self.namespace[name] = type_definition
-                self.namespace.set_node_id(name, node.node_id)
+                self.namespace.set_referenced_node_id(name, node.node_id)
             except VyperException as exc:
                 raise exc.with_annotation(node) from None
             return
@@ -231,7 +231,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
         if is_immutable:
             try:
                 self.namespace[name] = type_definition
-                self.namespace.set_node_id(name, node.node_id)
+                self.namespace.set_referenced_node_id(name, node.node_id)
             except VyperException as exc:
                 raise exc.with_annotation(node) from None
             return
@@ -244,6 +244,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
             self.namespace["self"].add_member(name, type_definition)
             self.namespace["self"].set_member_node_id(name, node.node_id)
             node.target._metadata["type"] = type_definition
+            node.target._metadata["scope"] = self.namespace.current_scope()
         except NamespaceCollision:
             raise NamespaceCollision(f"Value '{name}' has already been declared", node) from None
         except VyperException as exc:
@@ -253,7 +254,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
         obj = Event.from_EventDef(node)
         try:
             self.namespace[node.name] = obj
-            self.namespace.set_node_id(node.name, node.node_id)
+            self.namespace.set_referenced_node_id(node.name, node.node_id)
         except VyperException as exc:
             raise exc.with_annotation(node) from None
 
@@ -289,7 +290,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
         obj = self.namespace["interface"].build_primitive_from_node(node)
         try:
             self.namespace[node.name] = obj
-            self.namespace.set_node_id(node.name, node.node_id)
+            self.namespace.set_referenced_node_id(node.name, node.node_id)
         except VyperException as exc:
             raise exc.with_annotation(node) from None
 
@@ -297,7 +298,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
         obj = self.namespace["struct"].build_primitive_from_node(node)
         try:
             self.namespace[node.name] = obj
-            self.namespace.set_node_id(node.name, node.node_id)
+            self.namespace.set_referenced_node_id(node.name, node.node_id)
         except VyperException as exc:
             raise exc.with_annotation(node) from None
 

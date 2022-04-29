@@ -21,7 +21,7 @@ from vyper.exceptions import (
 
 # TODO consolidate some of these imports
 from vyper.semantics.environment import CONSTANT_ENVIRONMENT_VARS, MUTABLE_ENVIRONMENT_VARS
-from vyper.semantics.namespace import get_namespace
+from vyper.semantics.namespace import Namespace, get_namespace
 from vyper.semantics.types.abstract import IntegerAbstractType
 from vyper.semantics.types.bases import DataLocation
 from vyper.semantics.types.function import (
@@ -56,7 +56,7 @@ def validate_functions(vy_module: vy_ast.Module) -> None:
     err_list = ExceptionList()
     namespace = get_namespace()
     for node in vy_module.get_children(vy_ast.FunctionDef):
-        with namespace.enter_scope():
+        with namespace.enter_scope(node.node_id):
             try:
                 FunctionNodeVisitor(vy_module, node, namespace)
             except VyperException as e:
@@ -161,7 +161,7 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
     scope_name = "function"
 
     def __init__(
-        self, vyper_module: vy_ast.Module, fn_node: vy_ast.FunctionDef, namespace: dict
+        self, vyper_module: vy_ast.Module, fn_node: vy_ast.FunctionDef, namespace: Namespace
     ) -> None:
         self.vyper_module = vyper_module
         self.fn_node = fn_node
@@ -170,6 +170,7 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
         self.annotation_visitor = StatementAnnotationVisitor(fn_node, namespace)
         self.expr_visitor = _LocalExpressionVisitor()
         namespace.update(self.func.arguments.get_types_with_key_dict())
+        namespace.update_referenced_node_ids(self.func.arguments.get_member_node_id_with_key_dict())
 
         if self.func.mutability == StateMutability.PURE:
             node_list = fn_node.get_descendants(
@@ -193,7 +194,7 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
                 raise NonPayableViolation(
                     "msg.value is not allowed in non-payable functions", node_list[0]
                 )
-
+        self.visit(fn_node.args)
         for node in fn_node.body:
             self.visit(node)
         if self.func.return_type:
@@ -206,6 +207,11 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
     def visit(self, node):
         super().visit(node)
         self.annotation_visitor.visit(node)
+
+    def visit_arguments(self, node):
+        node._metadata["scope"] = self.namespace.current_scope()
+        for arg in node.args:
+            self.expr_visitor.visit(arg)
 
     def visit_AnnAssign(self, node):
         name = node.get("target.id")
@@ -222,7 +228,8 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
 
         try:
             self.namespace[name] = type_definition
-            self.namespace.set_node_id(name, node.node_id)
+            self.namespace.set_referenced_node_id(name, node.node_id)
+            node.target._metadata["scope"] = self.namespace.current_scope()
         except VyperException as exc:
             raise exc.with_annotation(node) from None
         self.expr_visitor.visit(node.value)
@@ -293,10 +300,10 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
     def visit_If(self, node):
         validate_expected_type(node.test, BoolDefinition())
         self.expr_visitor.visit(node.test)
-        with self.namespace.enter_scope():
+        with self.namespace.enter_scope(node.body.node_id):
             for n in node.body:
                 self.visit(n)
-        with self.namespace.enter_scope():
+        with self.namespace.enter_scope(node.orelse.node_id):
             for n in node.orelse:
                 self.visit(n)
 
@@ -403,10 +410,11 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
             type_ = copy.deepcopy(type_)
             type_.is_constant = True
 
-            with self.namespace.enter_scope():
+            with self.namespace.enter_scope(node.node_id):
                 try:
                     self.namespace[iter_name] = type_
-                    self.namespace.set_node_id(iter_name, node.target.node_id)
+                    self.namespace.set_referenced_node_id(iter_name, node.target.node_id)
+                    node.target._metadata["scope"] = self.namespace.current_scope()
                 except VyperException as exc:
                     raise exc.with_annotation(node) from None
 
@@ -489,6 +497,14 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
 class _LocalExpressionVisitor(VyperNodeVisitorBase):
     ignored_types = (vy_ast.Constant, vy_ast.Name)
     scope_name = "function"
+
+    def visit_arg(self, node: vy_ast.arg) -> None:
+
+        type_definition = get_type_from_annotation(
+            node.annotation, DataLocation.CALLDATA  # type: ignore
+        )
+        node._metadata["type"] = type_definition
+        node._metadata["scope"] = node.get_ancestor()._metadata["scope"]
 
     def visit_Attribute(self, node: vy_ast.Attribute) -> None:
         self.visit(node.value)

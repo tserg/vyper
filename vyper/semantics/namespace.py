@@ -18,11 +18,14 @@ class Namespace(dict):
     ----------
     _scopes : List[Set]
         List of sets containing the key names for each scope
+    _scope_node_ids: List[int]
+        List of node IDs representing the current active scopes
     """
 
     def __init__(self):
         super().__init__()
         self._scopes = []
+        self._scope_node_ids = []
         # NOTE cyclic imports!
         from vyper.builtin_functions.functions import get_builtin_functions
         from vyper.semantics import environment
@@ -56,18 +59,9 @@ class Namespace(dict):
             raise CompilerPanic("Bad use of namespace as a context manager")
         for key in self._scopes.pop():
             del self[key]
+        self._scope_node_ids.pop()
 
-    def get_node_id(self, key):
-        if key not in self:
-            return None
-        return super().__getitem__(key)[1]
-
-    def set_node_id(self, key, node_id):
-        if key in self:
-            t = super().__getitem__(key)
-            super().__setitem__(key, (t[0], node_id))
-
-    def enter_scope(self):
+    def enter_scope(self, node_id):
         """
         Enter a new scope within the namespace.
 
@@ -78,6 +72,7 @@ class Namespace(dict):
         from vyper.semantics import environment
 
         self._scopes.append(set())
+        self._scope_node_ids.append(node_id)
 
         if len(self._scopes) == 1:
             # add mutable vars (`self`) to the initial scope
@@ -85,9 +80,27 @@ class Namespace(dict):
 
         return self
 
+    def current_scope(self):
+        return self._scope_node_ids[-1]
+
     def update(self, other):
         for key, value in other.items():
             self.__setitem__(key, value)
+
+    def get_referenced_node_id(self, key):
+        if key not in self:
+            return None
+        return super().__getitem__(key)[1]
+
+    def set_referenced_node_id(self, key, node_id):
+        if key in self:
+            t = super().__getitem__(key)
+            super().__setitem__(key, (t[0], node_id))
+
+    def update_referenced_node_ids(self, other):
+        for key, value in other.items():
+            if key in self:
+                self.set_referenced_node_id(key, value)
 
     def clear(self):
         super().clear()
