@@ -72,7 +72,8 @@ class ContractFunction(BaseTypeDefinition):
     name : str
         The name of the function.
     arguments : MemberInfoDict
-        Function input arguments as {'name': (BaseType, referenced node ID}
+        Function input arguments as a mapping from the argument's name to a
+        tuple of the argument's type and node ID {'name': (BaseType, int)}
     min_arg_count : int
         The minimum number of required input arguments.
     max_arg_count : int

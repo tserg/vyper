@@ -580,8 +580,7 @@ class MemberTypeDefinition(BaseTypeDefinition):
 
     def get_member(self, key: str, node: vy_ast.VyperNode) -> BaseTypeDefinition:
         if key in self.members:
-            val = self.members[key]
-            return val
+            return self.members[key]
         elif key in getattr(self, "_type_members", []):
             type_ = copy.deepcopy(self._type_members[key])
             type_.location = self.location

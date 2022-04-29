@@ -40,8 +40,8 @@ def get_constant_vars() -> Dict:
     """
     result = {}
     for name, members in CONSTANT_ENVIRONMENT_VARS.items():
-        updated_members = MemberInfoDict({k: v(is_constant=True) for k, v in members.items()})
-        result[name] = StructDefinition(name, updated_members, is_constant=True)
+        members = MemberInfoDict({k: v(is_constant=True) for k, v in members.items()})
+        result[name] = StructDefinition(name, members, is_constant=True)
 
     return result
 

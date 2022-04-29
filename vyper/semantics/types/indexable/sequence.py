@@ -147,10 +147,7 @@ class DynamicArrayDefinition(_SequenceDefinition, MemberTypeDefinition):
             "append",
             MemberFunctionDefinition(self, "append", [self.value_type], None, True),
         )
-        self.add_member(
-            "pop",
-            MemberFunctionDefinition(self, "pop", [], self.value_type, True),
-        )
+        self.add_member("pop", MemberFunctionDefinition(self, "pop", [], self.value_type, True))
 
     def __repr__(self):
         return f"DynArray[{self.value_type}, {self.length}]"
