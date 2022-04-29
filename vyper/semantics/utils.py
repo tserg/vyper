@@ -2,6 +2,18 @@ from collections import OrderedDict
 
 
 class MemberInfoDict(OrderedDict):
+    """
+    OrderedDict subclass that represents the type definition and referenced node
+    ID of the members of a base type definition. This operates in a similar
+    manner to Namespace.
+
+    It contains a mapping of member keys to a tuple of member type and the node
+    ID of the member's declaration. By default, the node ID is initialised to
+    None. The defaul dictionary operations will act on the type definition only.
+    All operations relating to the node ID should be done via the specific
+    `*_member_node_id` functions.
+    """
+
     def __init__(self, dict_values=None):
         if dict_values:
             for k, v in dict_values.items():

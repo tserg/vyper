@@ -14,11 +14,17 @@ class Namespace(dict):
     """
     Dictionary subclass that represents the namespace of a contract.
 
+    Each key maps to a tuple of type definition and the node ID of the identifier's
+    declaration. By default, the node ID is initialised to None. The default
+    dictionary operations will act on the type definition only. All operations
+    relating to the node ID should be done via the specific `*_referenced_node_id`
+    functions.
+
     Attributes
     ----------
     _scopes : List[Set]
         List of sets containing the key names for each scope
-    _scope_node_ids: List[int]
+    _scope_node_ids: List[Union[int, str]]
         List of node IDs representing the current active scopes
     """
 
