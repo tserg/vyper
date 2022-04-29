@@ -207,7 +207,9 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
             annotation, data_loc, is_constant, is_public, is_immutable
         )
         node._metadata["type"] = type_definition
-
+        node.target._metadata["type"] = type_definition
+        node.target._metadata["scope"] = self.namespace.current_scope()
+        node.target._metadata["state_variable_visibility"] = "public" if is_public else "private"
         if is_constant:
             if not node.value:
                 raise VariableDeclarationException("Constant must be declared with a value", node)
@@ -218,6 +220,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
             try:
                 self.namespace[name] = type_definition
                 self.namespace.set_referenced_node_id(name, node.node_id)
+                node.target._metadata["mutability"] = "constant"
             except VyperException as exc:
                 raise exc.with_annotation(node) from None
             return
@@ -232,6 +235,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
             try:
                 self.namespace[name] = type_definition
                 self.namespace.set_referenced_node_id(name, node.node_id)
+                node.target._metadata["mutability"] = "immutable"
             except VyperException as exc:
                 raise exc.with_annotation(node) from None
             return
@@ -243,8 +247,7 @@ class ModuleNodeVisitor(VyperNodeVisitorBase):
         try:
             self.namespace["self"].add_member(name, type_definition)
             self.namespace["self"].set_member_node_id(name, node.node_id)
-            node.target._metadata["type"] = type_definition
-            node.target._metadata["scope"] = self.namespace.current_scope()
+            node.target._metadata["mutability"] = "mutable"
         except NamespaceCollision:
             raise NamespaceCollision(f"Value '{name}' has already been declared", node) from None
         except VyperException as exc:
