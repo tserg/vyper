@@ -61,12 +61,18 @@ class Namespace(dict):
             del self[key]
         self._scope_node_ids.pop()
 
-    def enter_scope(self, node_id):
+    def enter_scope(self, node_id=None):
         """
         Enter a new scope within the namespace.
 
         Called as a context manager, e.g. `with namespace.enter_scope():`
         All items that are added within the context are removed upon exit.
+
+        Arguments
+        ---------
+        node_id: int, optional
+            The ID of a node representing the new scope.
+            (e.g. contract, function, for loop)
         """
         # NOTE cyclic imports!
         from vyper.semantics import environment
