@@ -124,8 +124,10 @@ class Event:
             {
                 "name": self.name,
                 "inputs": [
-                    dict(**generate_abi_type(typ[0], name), **{"indexed": idx})
-                    for (name, typ), idx in zip(self.arguments.items(), self.indexed)
+                    dict(**generate_abi_type(typ, name), **{"indexed": idx})
+                    for (name, typ), idx in zip(
+                        self.arguments.get_types_with_key_list(), self.indexed
+                    )
                 ],
                 "anonymous": False,
                 "type": "event",
