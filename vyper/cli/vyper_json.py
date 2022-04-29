@@ -401,6 +401,9 @@ def format_to_output_dict(compiler_data: Dict) -> Dict:
         if "ast_dict" in data:
             output_dict["sources"][path]["ast"] = data["ast_dict"]["ast"]
 
+        if "ast_extended_dict" in data:
+            output_dict["sources"][path]["ast_extended"] = data["ast_extended_dict"]["ast"]
+
         name = Path(path).stem
         output_dict["contracts"][path] = {name: {}}
         output_contracts = output_dict["contracts"][path][name]
