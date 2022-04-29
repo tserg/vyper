@@ -70,9 +70,13 @@ class Namespace(dict):
 
         Arguments
         ---------
-        node_id: int, optional
+        node_id: int | str, optional
             The ID of a node representing the new scope.
             (e.g. contract, function, for loop)
+
+            For if-else, the node ID is appended with the branch as a string
+            ("body" and "orelse") since there is no parent node for each branch
+            (each branch is a list of nodes).
         """
         # NOTE cyclic imports!
         from vyper.semantics import environment

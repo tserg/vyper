@@ -300,10 +300,10 @@ class FunctionNodeVisitor(VyperNodeVisitorBase):
     def visit_If(self, node):
         validate_expected_type(node.test, BoolDefinition())
         self.expr_visitor.visit(node.test)
-        with self.namespace.enter_scope(node.node_id):
+        with self.namespace.enter_scope(f"{node.node_id} - if branch"):
             for n in node.body:
                 self.visit(n)
-        with self.namespace.enter_scope(node.node_id):
+        with self.namespace.enter_scope(f"{node.node_id} - else branch"):
             for n in node.orelse:
                 self.visit(n)
 
